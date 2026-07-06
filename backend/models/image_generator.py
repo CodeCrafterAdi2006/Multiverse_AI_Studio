@@ -102,6 +102,25 @@ class ImageGenerator(BaseModel):
         if not actual_prompt:
             raise ValueError("ImageGenerator requires a valid 'prompt' in kwargs.")
 
+        # ── POLLINATIONS backend ──────────────────────────────────────────────
+        # WHAT: Calls Pollinations.ai — a completely free, no-auth image generation service.
+        # WHY: Requires zero API key, zero credits, zero quota. Just a plain HTTP GET request.
+        #      The URL encodes the prompt and the service returns a JPEG image directly.
+        # HOW: We URL-encode the prompt string and make a GET request. The response body
+        #      IS the image bytes — we wrap them directly in a PIL Image object.
+        if self.backend == "pollinations":
+            try:
+                import urllib.parse
+                import requests as req
+                encoded = urllib.parse.quote(actual_prompt)
+                url = f"https://image.pollinations.ai/prompt/{encoded}?width=768&height=512&nologo=true&seed=42"
+                print(f"[ImageGenerator] Calling Pollinations.ai for free image generation...")
+                response = req.get(url, timeout=60)
+                response.raise_for_status()
+                return Image.open(BytesIO(response.content)).convert("RGB")
+            except Exception as e:
+                raise RuntimeError(f"Pollinations Image Generation failed: {e}") from e
+
         # ── GEMINI backend ────────────────────────────────────────────────────
         if self.backend == "gemini":
             try:

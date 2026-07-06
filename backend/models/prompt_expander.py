@@ -14,7 +14,7 @@ import re
 from typing import Dict
 
 from .base import BaseModel
-from ..config import HF_TOKEN, GEMINI_API_KEY, MOCK_INFERENCE, get_stage_config
+from ..config import HF_TOKEN, GEMINI_API_KEY, GROQ_API_KEY, MOCK_INFERENCE, get_stage_config
 
 class PromptExpander(BaseModel):
     """
@@ -38,6 +38,15 @@ class PromptExpander(BaseModel):
         # "mock" backend — no initialization needed, generate() will return procedural data
         if MOCK_INFERENCE or self.backend == "mock":
             print("[PromptExpander] Running in MOCK mode. Bypassing client initialization.")
+            return
+
+        # "groq" backend — initialize Groq client (OpenAI-compatible SDK)
+        if self.backend == "groq":
+            if not GROQ_API_KEY:
+                raise ValueError("GROQ_API_KEY is missing. Cannot initialize Groq PromptExpander.")
+            from groq import Groq
+            self.client = Groq(api_key=GROQ_API_KEY)
+            print(f"[PromptExpander] Initialized Groq client with model: {self.model_id}")
             return
 
         # "gemini" backend — initialize Google GenAI client
@@ -118,6 +127,28 @@ class PromptExpander(BaseModel):
 
         system_msg = self._build_system_message()
         user_msg = f"Expand this prompt: {base_prompt}"
+
+        # ── GROQ backend ──────────────────────────────────────────────────────
+        # WHY: Groq uses the same OpenAI-style chat completions API, making it
+        #      a drop-in replacement for any OpenAI-compatible LLM call.
+        if self.backend == "groq":
+            try:
+                messages = [
+                    {"role": "system", "content": system_msg},
+                    {"role": "user", "content": user_msg}
+                ]
+                response = self.client.chat.completions.create(
+                    model=self.model_id,
+                    messages=messages,
+                    max_tokens=500,
+                    temperature=0.7,
+                )
+                raw_text = response.choices[0].message.content.strip()
+                return self._parse_json_response(raw_text, base_prompt)
+            except Exception as e:
+                print(f"[PromptExpander Warning] Groq failed, using fallback. Error: {e}")
+                return {"image_prompt": base_prompt, "audio_prompt": base_prompt,
+                        "video_prompt": base_prompt, "scene_description": base_prompt}
 
         # ── GEMINI backend ────────────────────────────────────────────────────
         if self.backend == "gemini":

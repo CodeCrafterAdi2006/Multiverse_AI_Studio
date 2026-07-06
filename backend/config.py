@@ -21,6 +21,11 @@ HF_TOKEN = os.getenv("HF_TOKEN")
 # HOW: Set GEMINI_API_KEY in your .env file or in Hugging Face Space secrets.
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
+# WHAT: Groq API key for ultra-fast free LLM inference (prompt expansion stage).
+# WHY: Groq's free tier provides 14,400 requests/day with Llama 3.1 at near-instant speed.
+# HOW: Set GROQ_API_KEY in your .env file or in Hugging Face Space secrets.
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
 # WHAT: Toggle to run the pipeline using lightweight mock generators instead of heavy PyTorch models.
 # WHY: Downloading 20GB+ of weights and running inference requires a high-end GPU.
 #      Setting this to True allows instant testing of the server and frontend on any laptop.

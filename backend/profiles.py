@@ -32,12 +32,44 @@ import os
 PROFILES = {
 
     # ----------------------------------------------------------
-    # PROFILE: gemini_cloud (RECOMMENDED DEFAULT)
+    # PROFILE: groq_cloud (RECOMMENDED — CURRENTLY ACTIVE)
+    # ----------------------------------------------------------
+    # Uses Groq's free API for ultra-fast LLM prompt expansion (Llama 3.1, 14,400 req/day).
+    # Uses Pollinations.ai for image generation — completely free, zero API key required.
+    # Depth estimation runs locally on CPU (tiny model, ~100MB).
+    # Audio and Video fall back to mock on CPU, real on GPU.
+    # ----------------------------------------------------------
+    "groq_cloud": {
+        "prompt_expansion": {
+            "backend": "groq",
+            "model": "llama-3.1-8b-instant",   # Fast, free, 8B Llama — great for prompt work
+        },
+        "image_generation": {
+            "backend": "pollinations",           # No API key. Just an HTTP request. Always free.
+            "model": None,
+        },
+        "depth_estimation": {
+            "backend": "local",
+            "model": "depth-anything/Depth-Anything-V2-Small-hf",
+        },
+        "audio_generation": {
+            "backend": "auto",
+            "model": "facebook/musicgen-small",
+        },
+        "video_generation": {
+            "backend": "auto",
+            "model": "ali-vilab/i2vgen-xl",
+        },
+    },
+
+    # ----------------------------------------------------------
+    # PROFILE: gemini_cloud
     # ----------------------------------------------------------
     # Uses Google Gemini API for both LLM (prompt expansion) and image generation.
     # COMPLETELY FREE — no HuggingFace credits consumed, no GPU required.
     # Depth estimation runs locally on CPU (it's a tiny model, ~100MB, takes ~3s).
     # Audio and Video fall back to mock on CPU machines (require GPU for real output).
+    # NOTE: Requires a Google Cloud project WITHOUT billing enabled (free tier quotas = 1500/day).
     # ----------------------------------------------------------
     "gemini_cloud": {
         "prompt_expansion": {

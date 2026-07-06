@@ -51,6 +51,14 @@ huggingface_hub
 # Used as the default free backend in the gemini_cloud inference profile.
 google-genai
 
+# groq: Official Groq Python SDK. OpenAI-compatible API for ultra-fast free LLM inference.
+# Used for prompt expansion in the groq_cloud inference profile.
+groq
+
+# requests: Standard HTTP library used by the Pollinations.ai image generation backend.
+# Pollinations is completely free — no API key, just an HTTP GET to image.pollinations.ai
+requests
+
 
 # ==========================================
 # MEDIA SERIALIZATION, ENCODING & FILE I/O
