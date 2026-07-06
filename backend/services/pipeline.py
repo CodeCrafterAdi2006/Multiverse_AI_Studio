@@ -62,10 +62,10 @@ def execute_model_sync(model, **kwargs):
         model.cleanup()
 
 
-async def run_pipeline(job_id: str, prompt: str):
+async def run_pipeline(job_id: str, prompt: str, groq_key: str = None):
     """
     WHAT: The main execution flow orchestrating the 5-stage AI pipeline.
-    
+
     WHY USE THREAD_POOL_EXECUTOR?
     FastAPI uses an asynchronous event loop (`asyncio`). However, AI model inference 
     (PyTorch/HuggingFace) is CPU/GPU-bound and completely synchronous. If we called 
@@ -74,16 +74,20 @@ async def run_pipeline(job_id: str, prompt: str):
     By offloading the execution to a ThreadPoolExecutor, the heavy ML computation runs 
     on a separate thread, freeing FastAPI to continue serving concurrent web requests.
 
+    :param groq_key: Optional Groq API key provided by the visitor via X-Groq-Key header.
+                     If present, it overrides the server's GROQ_API_KEY env var for this
+                     specific request, so the visitor's quota is used, not the server's.
+    """
     DEPENDENCY GRAPH & CONCURRENCY:
     - Stage 1: Prompt Expansion (Needs: user prompt)
     - Stage 2: Image Gen (Needs: expanded prompt)
     - Stage 3: Depth Est (Needs: generated image)
     - Stage 4: Audio Gen (Needs: expanded prompt)
     - Stage 5: Video Gen (Needs: image, depth map, audio)
-    
-    Notice that AFTER image generation, Depth Estimation and Audio Generation do NOT 
-    depend on each other. Conceptually, they *could* be run in parallel. However, running 
-    two heavy Hugging Face models simultaneously would instantly cause a VRAM Out-of-Memory 
+
+    Notice that AFTER image generation, Depth Estimation and Audio Generation do NOT
+    depend on each other. Conceptually, they *could* be run in parallel. However, running
+    two heavy Hugging Face models simultaneously would instantly cause a VRAM Out-of-Memory
     error on most machines. Therefore, we execute them strictly sequentially here.
     """
     
@@ -133,9 +137,10 @@ async def run_pipeline(job_id: str, prompt: str):
         await asyncio.sleep(2.5)
     try:
         expander = PromptExpander()
-        # await loop.run_in_executor runs the sync function in the background thread
+        # await loop.run_in_executor runs the sync function in the background thread.
+        # We pass groq_key so the expander uses the visitor's personal key if provided.
         expanded_prompt = await loop.run_in_executor(
-            executor, partial(execute_model_sync, expander, prompt=prompt)
+            executor, partial(execute_model_sync, expander, prompt=prompt, groq_key=groq_key)
         )
     except Exception as e:
         record_stage_error("Prompt Expansion", e)

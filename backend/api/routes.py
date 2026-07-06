@@ -8,7 +8,8 @@ HOW: We use FastAPI's `APIRouter` to modularize these endpoints. The router will
 """
 
 from datetime import datetime, timezone
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Header
+from typing import Optional
 from pydantic import BaseModel
 
 # Import our job state manager to create and fetch job records
@@ -43,7 +44,16 @@ def health_check():
 
 
 @router.post("/generate")
-def generate_assets(request: GenerateRequest, background_tasks: BackgroundTasks):
+def generate_assets(
+    request: GenerateRequest,
+    background_tasks: BackgroundTasks,
+    # WHAT: Read the visitor's Groq API key from the request header.
+    # WHY: If a visitor supplied their own key in the frontend modal, we use THEIR
+    #      quota for this request rather than the server's shared key.
+    #      If no header is present, the value is None and the pipeline falls back
+    #      to the GROQ_API_KEY environment variable.
+    x_groq_key: Optional[str] = Header(default=None),
+):
     """
     WHAT: Endpoint to start the AI generation pipeline based on a user's prompt.
     
@@ -67,8 +77,9 @@ def generate_assets(request: GenerateRequest, background_tasks: BackgroundTasks)
     # 1. Create a new job in our in-memory store
     job_id = create_job()
     
-    # 2. Hand off the heavy lifting to a background task
-    background_tasks.add_task(run_pipeline, job_id, request.prompt)
+    # 2. Hand off the heavy lifting to a background task.
+    #    Pass the visitor's key (or None) so the pipeline can use their quota.
+    background_tasks.add_task(run_pipeline, job_id, request.prompt, x_groq_key)
     
     # 3. Return the ID immediately to the client
     return {"job_id": job_id}

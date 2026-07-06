@@ -40,10 +40,23 @@ function fixAssetUrl(assetUrl?: string): string | undefined {
   return assetUrl;
 }
 
+// Import the key store utility so we can attach the visitor's key to every request.
+// WHY: The server uses whatever key is in this header first, falling back to its own
+// env-var key if no header is present. This means visitors use their own quota.
+import { getStoredApiKey } from "./keyStore";
+
 export async function generateAssets(prompt: string): Promise<{ job_id: string }> {
+  // Build headers — attach visitor's Groq key if one is stored in their session
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const visitorKey = getStoredApiKey();
+  if (visitorKey) {
+    // The backend reads this header in routes.py and passes it to the pipeline
+    headers["X-Groq-Key"] = visitorKey;
+  }
+
   const response = await fetch(`${API_BASE_URL}/generate`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify({ prompt }),
   });
   if (!response.ok) {

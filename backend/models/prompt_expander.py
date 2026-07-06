@@ -115,6 +115,18 @@ class PromptExpander(BaseModel):
         if not base_prompt:
             raise ValueError("PromptExpander requires a 'prompt' string in kwargs.")
 
+        # WHAT: Accept a per-request Groq key override from the visitor.
+        # WHY: If the visitor supplied their own key via the frontend modal, we use it
+        #      so that their quota is consumed, not the server's.
+        # HOW: If present, we temporarily reassign self.client to use this key for this call.
+        runtime_groq_key = kwargs.get("groq_key")
+        if runtime_groq_key and self.backend == "groq":
+            from groq import Groq
+            # Create a one-off client with the visitor's key for this request only
+            groq_client = Groq(api_key=runtime_groq_key)
+        else:
+            groq_client = self.client  # Fall back to the server's pre-initialized client
+
         # ── MOCK backend ──────────────────────────────────────────────────────
         if MOCK_INFERENCE or self.backend == "mock":
             print(f"[PromptExpander] Mocking prompt expansion for: '{base_prompt}'")
@@ -137,7 +149,8 @@ class PromptExpander(BaseModel):
                     {"role": "system", "content": system_msg},
                     {"role": "user", "content": user_msg}
                 ]
-                response = self.client.chat.completions.create(
+                # Use groq_client — either the visitor's key or the server's fallback
+                response = groq_client.chat.completions.create(
                     model=self.model_id,
                     messages=messages,
                     max_tokens=500,
