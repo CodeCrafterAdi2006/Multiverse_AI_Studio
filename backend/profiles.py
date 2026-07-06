@@ -178,9 +178,12 @@ PROFILES = {
 
 # ============================================================
 # ACTIVE PROFILE SELECTION
-# Read from environment variable, defaulting to "gemini_cloud"
+# Read from environment variable, defaulting to "groq_cloud" — the zero-config
+# demo profile (Pollinations images need no key; depth runs locally on CPU).
+# Set INFERENCE_PROFILE to "gemini_cloud" (needs GEMINI_API_KEY), "huggingface"
+# (needs HF credits), "local_gpu" (needs a GPU), or "mock" if you prefer.
 # ============================================================
-ACTIVE_PROFILE_NAME = os.getenv("INFERENCE_PROFILE", "gemini_cloud")
+ACTIVE_PROFILE_NAME = os.getenv("INFERENCE_PROFILE", "groq_cloud")
 
 # Guard: If the user sets an unknown profile name, fall back to mock with a warning
 if ACTIVE_PROFILE_NAME not in PROFILES:

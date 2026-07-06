@@ -45,7 +45,10 @@ class ImageGenerator(BaseModel):
         # ── GEMINI backend ────────────────────────────────────────────────────
         if self.backend == "gemini":
             if not GEMINI_API_KEY:
-                raise ValueError("GEMINI_API_KEY is missing. Cannot initialize Gemini ImageGenerator.")
+                # No key → degrade to free Pollinations image generation so the demo still works.
+                print("[ImageGenerator] GEMINI_API_KEY missing — falling back to Pollinations (no key) for images.")
+                self.backend = "pollinations"
+                return
             from google import genai
             self.client = genai.Client(api_key=GEMINI_API_KEY)
             print(f"[ImageGenerator] Initialized Gemini client with model: {self.model_id}")
