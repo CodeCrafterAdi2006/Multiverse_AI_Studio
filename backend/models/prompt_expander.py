@@ -14,7 +14,8 @@ import re
 from typing import Dict
 
 from .base import BaseModel
-from ..config import HF_TOKEN, GEMINI_API_KEY, GROQ_API_KEY, MOCK_INFERENCE, get_stage_config
+from ..config import HF_TOKEN, GEMINI_API_KEY, GROQ_API_KEY, MOCK_INFERENCE, DEVICE, get_stage_config
+import torch
 
 class PromptExpander(BaseModel):
     """
@@ -24,6 +25,7 @@ class PromptExpander(BaseModel):
 
     def __init__(self):
         self.client = None
+        self.pipe = None
         # Read stage config from the active profile (e.g. gemini_cloud, huggingface, mock)
         self.stage_config = get_stage_config("prompt_expansion")
         self.backend = self.stage_config["backend"]
@@ -43,7 +45,8 @@ class PromptExpander(BaseModel):
         # "groq" backend — initialize Groq client (OpenAI-compatible SDK)
         if self.backend == "groq":
             if not GROQ_API_KEY:
-                raise ValueError("GROQ_API_KEY is missing. Cannot initialize Groq PromptExpander.")
+                print("[PromptExpander] GROQ_API_KEY missing — will use local template expansion fallback.")
+                return
             from groq import Groq
             self.client = Groq(api_key=GROQ_API_KEY)
             print(f"[PromptExpander] Initialized Groq client with model: {self.model_id}")
@@ -52,7 +55,8 @@ class PromptExpander(BaseModel):
         # "gemini" backend — initialize Google GenAI client
         if self.backend == "gemini":
             if not GEMINI_API_KEY:
-                raise ValueError("GEMINI_API_KEY is missing. Cannot initialize Gemini PromptExpander.")
+                print("[PromptExpander] GEMINI_API_KEY missing — will use local template expansion fallback.")
+                return
             # Import the Google GenAI SDK (google-genai package)
             from google import genai
             self.client = genai.Client(api_key=GEMINI_API_KEY)
@@ -62,10 +66,28 @@ class PromptExpander(BaseModel):
         # "hf_inference" backend — initialize HuggingFace InferenceClient
         if self.backend == "hf_inference":
             if not HF_TOKEN:
-                raise ValueError("HF_TOKEN is missing. Cannot initialize HF PromptExpander.")
+                print("[PromptExpander] HF_TOKEN missing — will use local template expansion fallback.")
+                return
             from huggingface_hub import InferenceClient
             self.client = InferenceClient(token=HF_TOKEN)
             print(f"[PromptExpander] Initialized HF InferenceClient with model: {self.model_id}")
+            return
+
+        # "local" backend — load a text-generation pipeline on this machine (no cloud).
+        if self.backend == "local":
+            try:
+                from transformers import pipeline as hf_pipeline
+                torch_dtype = torch.float16 if DEVICE == "cuda" else torch.float32
+                self.pipe = hf_pipeline(
+                    "text-generation",
+                    model=self.model_id,
+                    device=DEVICE,
+                    torch_dtype=torch_dtype,
+                )
+                print(f"[PromptExpander] Loaded local LLM pipeline: {self.model_id}")
+            except Exception as e:
+                print(f"[PromptExpander Warning] Failed to load local LLM ({e}). Falling back to template expansion.")
+                self.pipe = None
             return
 
     def _build_system_message(self) -> str:
@@ -140,6 +162,13 @@ class PromptExpander(BaseModel):
         system_msg = self._build_system_message()
         user_msg = f"Expand this prompt: {base_prompt}"
 
+        # Graceful degradation: if no working client is available for a cloud LLM backend,
+        # fall back to a deterministic local expansion so the demo never breaks.
+        if self.backend == "groq" and groq_client is None:
+            return self._local_expand(base_prompt)
+        if self.backend in ("gemini", "hf_inference") and self.client is None:
+            return self._local_expand(base_prompt)
+
         # ── GROQ backend ──────────────────────────────────────────────────────
         # WHY: Groq uses the same OpenAI-style chat completions API, making it
         #      a drop-in replacement for any OpenAI-compatible LLM call.
@@ -199,12 +228,63 @@ class PromptExpander(BaseModel):
                 return {"image_prompt": base_prompt, "audio_prompt": base_prompt,
                         "video_prompt": base_prompt, "scene_description": base_prompt}
 
+        # ── LOCAL backend ─────────────────────────────────────────────────────
+        # WHY: Runs a local causal-LM text-generation pipeline (e.g. Mistral-7B) with no cloud.
+        # HOW: Builds the same system+user prompt, generates tokens, and parses the JSON.
+        if self.backend == "local":
+            if self.pipe is None:
+                return self._local_expand(base_prompt)
+            try:
+                full_prompt = f"{system_msg}\n\n{user_msg}"
+                output = self.pipe(
+                    full_prompt,
+                    max_new_tokens=512,
+                    temperature=0.7,
+                    do_sample=True,
+                    return_full_text=False,
+                )
+                raw_text = output[0]["generated_text"].strip()
+                return self._parse_json_response(raw_text, base_prompt)
+            except Exception as e:
+                print(f"[PromptExpander Warning] Local LLM failed, using fallback. Error: {e}")
+                return {"image_prompt": base_prompt, "audio_prompt": base_prompt,
+                        "video_prompt": base_prompt, "scene_description": base_prompt}
+
         # Unknown backend — safe fallback
         return {"image_prompt": base_prompt, "audio_prompt": base_prompt,
                 "video_prompt": base_prompt, "scene_description": base_prompt}
 
+    def _local_expand(self, base_prompt: str) -> Dict[str, str]:
+        """
+        WHAT: A deterministic, offline expansion used when no cloud LLM key is available.
+        WHY: Keeps the demo fully functional (zero API keys) while still enriching the
+              prompt with structured, model-friendly descriptions for each stage.
+        HOW: Builds tailored strings from the user's base prompt with no network calls.
+        """
+        theme = base_prompt.strip().rstrip(".") or "a mysterious abstract scene"
+        return {
+            "image_prompt": (
+                f"masterpiece, highly detailed cinematic visual of {theme}, "
+                f"rich volumetric lighting, 8k resolution, intricate details, dramatic atmosphere"
+            ),
+            "audio_prompt": f"ambient atmospheric soundscape evoking {theme}, subtle drone, soft textures",
+            "video_prompt": f"slow cinematic camera drift across {theme}, gentle parallax, shifting light",
+            "scene_description": (
+                f"A cinematic, atmospheric interpretation of '{theme}' with rich detail, "
+                f"depth, and a matching ambient soundscape."
+            ),
+        }
+
     def cleanup(self) -> None:
         """
-        No GPU weights were loaded locally for API-based backends, so cleanup is a no-op.
+        WHAT: Releases the local LLM pipeline and frees GPU memory when running the "local" backend.
+        WHY: A local 7B model holds several GB of VRAM; the orchestrator unloads each stage after use.
+        HOW: Deletes the pipeline reference and flushes the CUDA cache if a local model was loaded.
         """
-        pass
+        if self.pipe is not None:
+            del self.pipe
+            self.pipe = None
+            import gc
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()

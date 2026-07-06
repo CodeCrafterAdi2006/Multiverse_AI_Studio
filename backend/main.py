@@ -18,6 +18,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 # Import configurations and routers (relative to the backend package)
 from .config import OUTPUT_DIR
@@ -118,18 +119,27 @@ app.include_router(
 # ==========================================
 # FRONTEND STATIC FILES MOUNTING (FOR MONOLITHIC PRODUCTION DEPLOYMENT)
 # ==========================================
-# WHAT: Mounts the built React frontend folder to the root "/" path.
+# WHAT: Serves the built React frontend bundle.
 # WHY: In platforms like Hugging Face Spaces, the container can only expose a single port (7860).
-#      FastAPI serves the static HTML/JS/CSS React bundle on "/", and handles API requests on "/api".
-# HOW: Checks if the "frontend/dist" build folder exists, and mounts it dynamically.
+#      FastAPI serves the static HTML/JS/CSS React bundle and handles API requests on "/api".
+# HOW: We mount the bundled assets under "/static" and serve "index.html" for both "/" and any
+#      unknown client-side route (SPA fallback), so deep links like /studio/<jobId> survive a refresh.
 FRONTEND_DIST_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend", "dist")
+FRONTEND_INDEX = os.path.join(FRONTEND_DIST_DIR, "index.html")
 if os.path.exists(FRONTEND_DIST_DIR):
-    print(f"[Startup] Mounting frontend static files from: {FRONTEND_DIST_DIR}")
-    app.mount(
-        "/", 
-        StaticFiles(directory=FRONTEND_DIST_DIR, html=True), 
-        name="frontend"
-    )
+    print(f"[Startup] Serving frontend static files from: {FRONTEND_DIST_DIR}")
+    frontend_static_dir = os.path.join(FRONTEND_DIST_DIR, "static")
+    if os.path.isdir(frontend_static_dir):
+        app.mount(
+            "/static",
+            StaticFiles(directory=frontend_static_dir),
+            name="frontend_static",
+        )
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        # Unknown routes fall back to index.html so client-side (React Router) routing works.
+        return FileResponse(FRONTEND_INDEX)
 else:
     print("[Startup Warning] Frontend build directory not found. Server running API-only mode.")
 

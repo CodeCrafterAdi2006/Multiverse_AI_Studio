@@ -74,6 +74,16 @@ class ImageGenerator(BaseModel):
             print("[ImageGenerator] Local diffusion pipeline ready.")
             return
 
+    def _mock_image(self, actual_prompt: str) -> Image.Image:
+        """Procedurally generate a placeholder scene image (used by mock backend and as a fallback)."""
+        from PIL import ImageDraw
+        img = Image.new("RGB", (704, 512), color=(79, 70, 229))
+        draw = ImageDraw.Draw(img)
+        draw.ellipse([277, 181, 427, 331], fill=(225, 29, 72))
+        label = actual_prompt[:40] if actual_prompt else "Mock Scene"
+        draw.text((20, 20), f"Scene: {label}", fill=(255, 255, 255))
+        return img
+
     def generate(self, **kwargs) -> Image.Image:
         """
         WHAT: Generates a PIL Image from the expanded prompt.
@@ -90,14 +100,7 @@ class ImageGenerator(BaseModel):
 
         # ── MOCK backend ──────────────────────────────────────────────────────
         if MOCK_INFERENCE or self.backend == "mock":
-            print("[ImageGenerator] Generating mock visual scene image...")
-            from PIL import ImageDraw
-            img = Image.new("RGB", (704, 512), color=(79, 70, 229))
-            draw = ImageDraw.Draw(img)
-            draw.ellipse([277, 181, 427, 331], fill=(225, 29, 72))
-            label = actual_prompt[:40] if actual_prompt else "Mock Scene"
-            draw.text((20, 20), f"Scene: {label}", fill=(255, 255, 255))
-            return img
+            return self._mock_image(actual_prompt)
 
         if not actual_prompt:
             raise ValueError("ImageGenerator requires a valid 'prompt' in kwargs.")
@@ -119,7 +122,8 @@ class ImageGenerator(BaseModel):
                 response.raise_for_status()
                 return Image.open(BytesIO(response.content)).convert("RGB")
             except Exception as e:
-                raise RuntimeError(f"Pollinations Image Generation failed: {e}") from e
+                print(f"[ImageGenerator Warning] Pollinations failed ({e}). Using local mock image fallback.")
+                return self._mock_image(actual_prompt)
 
         # ── GEMINI backend ────────────────────────────────────────────────────
         if self.backend == "gemini":

@@ -30,8 +30,9 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 # WHY: Downloading 20GB+ of weights and running inference requires a high-end GPU.
 #      Setting this to True allows instant testing of the server and frontend on any laptop.
 # HOW: Read from the environment variable 'MOCK_INFERENCE' (as a string like 'True'/'False'), 
-#      defaulting to 'True' for easier out-of-the-box local development.
-MOCK_INFERENCE = os.getenv("MOCK_INFERENCE", "True").lower() in ("true", "1", "t")
+#      defaulting to 'False' so a fresh deployment on Hugging Face Spaces runs the real 
+#      (cloud + local-CPU) hybrid pipeline instead of returning fake assets.
+MOCK_INFERENCE = os.getenv("MOCK_INFERENCE", "False").lower() in ("true", "1", "t")
 
 # WHAT: Toggle to force CPU execution of heavy Hugging Face models (MusicGen & i2vgen-xl) when MOCK_INFERENCE is False.
 # WHY: By default, when running on a CPU-only machine with MOCK_INFERENCE=False, the backend

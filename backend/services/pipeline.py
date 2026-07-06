@@ -77,7 +77,7 @@ async def run_pipeline(job_id: str, prompt: str, groq_key: str = None):
     :param groq_key: Optional Groq API key provided by the visitor via X-Groq-Key header.
                      If present, it overrides the server's GROQ_API_KEY env var for this
                      specific request, so the visitor's quota is used, not the server's.
-    """
+
     DEPENDENCY GRAPH & CONCURRENCY:
     - Stage 1: Prompt Expansion (Needs: user prompt)
     - Stage 2: Image Gen (Needs: expanded prompt)

@@ -144,7 +144,7 @@ PROFILES = {
         },
         "image_generation": {
             "backend": "local",
-            "model": "runwayml/stable-diffusion-v1-5",    # 4GB VRAM — fits on RTX 4050
+            "model": "stable-diffusion-v1-5/stable-diffusion-v1-5",    # 4GB VRAM — fits on RTX 4050
         },
         "depth_estimation": {
             "backend": "local",

@@ -16,6 +16,24 @@ Designed with a strict focus on system architecture, event-loop safety, memory m
 
 ---
 
+## 🚦 Choosing your mode
+
+Multiverse AI Studio runs the same five-stage pipeline (prompt → image → depth → audio → video) in
+three configurations. Pick one in the **in-app welcome chooser** when you open the Space, or set it
+yourself via environment variables.
+
+| Mode | Where models run | Keys needed | Hardware | Guide |
+| --- | --- | --- | --- | --- |
+| **Local (full models)** | On your machine via `transformers`/`diffusers` | None (no gated models) | NVIDIA GPU (8GB+ VRAM) | [Run locally](#run-locally-full-models-no-cloud) |
+| **Hugging Face Space (cloud/demo)** | Images via Pollinations, LLM via Groq, depth on CPU | Optional `GROQ_API_KEY` | None (runs in the Space) | [Deploy to HF Spaces](#deploy-to-hugging-face-spaces-zero-config-demo) |
+| **Demo** | Same as the Space, no key | None | None | Click “Just demo” in the welcome modal |
+
+- **Local** = maximum quality and privacy, but needs a GPU and downloads weights.
+- **Space / Groq** = real images with zero setup; bring a free Groq key for real LLM prompt expansion (BYOK), or skip and still get real images + local depth + mock audio/video.
+- **Demo** = instant, no configuration.
+
+---
+
 ## 🏗️ System Architecture
 
 ### 1. Model Pipeline Flow
@@ -142,6 +160,94 @@ npm install
 npm run dev
 ```
 Open `http://localhost:3000` to access the Multiverse AI Studio interface.
+
+---
+
+## 🤗 Deploy to Hugging Face Spaces (Zero-Config Demo)
+
+This repository is configured as a **Docker SDK** Space (see the `sdk: docker` / `app_port: 7860`
+header at the top of this file and the `Dockerfile`). The FastAPI backend and the React frontend
+are built into a single container; the API is served under `/api` and the UI under `/`.
+
+### What works with NO keys at all
+The default profile is `groq_cloud`, which uses **Pollinations.ai** for image generation (completely
+free, no API key) and runs **Depth-Anything-V2-Small locally on CPU**. Audio and video fall back to
+procedural mock assets. So a freshly deployed Space produces **real images + real depth maps** even
+if you set no secrets. The LLM prompt-expansion stage gracefully degrades to a local template when no
+key is present, so the pipeline never crashes.
+
+### Recommended Space settings
+1. Create a new **Space** → SDK: **Docker**.
+2. In **Settings → Secrets and variables → Environment variables**, set:
+   ```env
+   INFERENCE_PROFILE=groq_cloud
+   MOCK_INFERENCE=False
+   FORCE_CPU_INFERENCE=False
+   ```
+3. *(Optional, enables real LLM prompt expansion)* add `GROQ_API_KEY` (free from console.groq.com).
+   Visitors can also paste their own Groq key in the welcome modal (BYOK) — that uses *their* quota.
+4. Push the repo (the Dockerfile builds the frontend and installs the Python deps automatically).
+5. Open the Space. Enter a prompt → it runs the pipeline and polls for results.
+
+> The default `MOCK_INFERENCE` is `False` (see `backend/config.py`) so a clean deploy runs the real
+> hybrid pipeline. Set `MOCK_INFERENCE=True` only if you want instant fake assets for UI testing.
+
+---
+
+---
+
+## 🖥️ Run locally (full models, no cloud)
+
+Run the **entire pipeline on your own hardware** — no API keys and no per-request cloud calls. Set
+`INFERENCE_PROFILE=local_gpu` and the backend downloads and runs each model locally with
+`transformers`/`diffusers`.
+
+### Prerequisites
+- Python 3.10+
+- An NVIDIA GPU with ~8GB+ VRAM recommended
+- CUDA-enabled PyTorch
+- (The first run downloads model weights; afterwards everything runs offline.)
+
+### 1. Install CUDA PyTorch
+```bash
+pip install torch --index-url https://download.pytorch.org/whl/cu121
+```
+
+### 2. Install dependencies
+```bash
+cd backend
+python -m venv venv
+source venv/bin/activate   # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+### 3. Select local models
+```bash
+export INFERENCE_PROFILE=local_gpu   # Windows (PowerShell): $env:INFERENCE_PROFILE="local_gpu"
+```
+This profile runs every stage locally:
+- **Prompt expansion**: `mistralai/Mistral-7B-Instruct-v0.2` (local LLM)
+- **Image**: a local Stable Diffusion 1.5 checkpoint
+- **Depth**: `depth-anything/Depth-Anything-V2-Small-hf` (runs fine on CPU)
+- **Audio**: `facebook/musicgen-small`
+- **Video**: `ali-vilab/i2vgen-xl`
+
+Optional: set `HF_TOKEN` only if you swap in a gated model — none of the defaults are gated.
+
+### 4. Run
+Build the frontend once, then start the server (it serves both the API on `/api` and the UI on `/`):
+```bash
+cd frontend && npm install && npm run build && cd ..
+python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000
+```
+Open http://localhost:8000.
+
+### Hardware notes
+- **Depth** runs comfortably on CPU.
+- **Image** and **Audio** run on a 6–8GB GPU.
+- **Video** (`i2vgen-xl`, ~10GB+) needs more VRAM. On a CPU-only machine the server automatically
+  bypasses audio/video to mock output unless you set `FORCE_CPU_INFERENCE=True` (slow / OOM risk).
+- Models cache in `~/.cache/huggingface`; after the first download the pipeline works fully offline.
 
 ---
 
