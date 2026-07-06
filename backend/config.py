@@ -16,6 +16,11 @@ import torch
 # HOW: Set this in your environment or a .env file before running the server (e.g., export HF_TOKEN="hf_...").
 HF_TOKEN = os.getenv("HF_TOKEN")
 
+# WHAT: Google Gemini API key for cloud LLM (prompt expansion) and image generation.
+# WHY: Gemini API has a generous free tier (1500 req/day) with no Inference Provider credits needed.
+# HOW: Set GEMINI_API_KEY in your .env file or in Hugging Face Space secrets.
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
 # WHAT: Toggle to run the pipeline using lightweight mock generators instead of heavy PyTorch models.
 # WHY: Downloading 20GB+ of weights and running inference requires a high-end GPU.
 #      Setting this to True allows instant testing of the server and frontend on any laptop.
@@ -29,6 +34,12 @@ MOCK_INFERENCE = os.getenv("MOCK_INFERENCE", "True").lower() in ("true", "1", "t
 #      Setting this to True overrides this safety guard and forces the CPU to execute them.
 # HOW: Read from the environment variable 'FORCE_CPU_INFERENCE', defaulting to 'False'.
 FORCE_CPU_INFERENCE = os.getenv("FORCE_CPU_INFERENCE", "False").lower() in ("true", "1", "t")
+
+# WHAT: Import the active inference profile and helper from profiles.py.
+# WHY: profiles.py is the control panel for switching between mock/gemini/hf/local backends.
+#      Re-exporting here means all model wrappers only need one import: `from ..config import ...`
+# HOW: profiles.py reads INFERENCE_PROFILE from the environment and selects the correct dict.
+from .profiles import ACTIVE_PROFILE, ACTIVE_PROFILE_NAME, get_stage_config
 
 
 # WHAT: A dictionary mapping pipeline stage names to specific Hugging Face model repositories.

@@ -20,3 +20,5 @@ node_modules/
 # Python package metadata - generated during packaging
 *.egg-info/
 test_apple.png
+
+scratch/

@@ -47,6 +47,10 @@ accelerate
 # huggingface_hub: Needed to run serverless inference API calls (used in Prompt Expander).
 huggingface_hub
 
+# google-genai: Official Google GenAI Python SDK for Gemini cloud LLM and image generation.
+# Used as the default free backend in the gemini_cloud inference profile.
+google-genai
+
 
 # ==========================================
 # MEDIA SERIALIZATION, ENCODING & FILE I/O
