@@ -37,11 +37,10 @@ FORCE_CPU_INFERENCE = os.getenv("FORCE_CPU_INFERENCE", "False").lower() in ("tru
 # HOW: These strings will be imported by their respective model wrappers in backend/models/.
 MODEL_IDS = {
     # Expands a short user prompt into a detailed, descriptive prompt for better image generation.
-    "prompt_expansion": "HuggingFaceH4/zephyr-7b-beta",
+    "prompt_expansion": "Qwen/Qwen2.5-72B-Instruct",
     
     # Generates the foundational visual scene based on the expanded prompt.
-    # Switched to Stable Diffusion v1.5 (still supported by HF Inference, free!)
-    "image_generation": "runwayml/stable-diffusion-v1-5",
+    "image_generation": "black-forest-labs/FLUX.1-schnell",
     
     # Analyzes the generated image to create a depth map, adding 3D context for video generation.
     "depth_estimation": "depth-anything/Depth-Anything-V2-Small-hf",
