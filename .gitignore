@@ -1,0 +1,22 @@
+# Generated AI outputs - these are large, binary, and regenerated on demand
+generated_assets/
+
+# Python cache files - automatically generated, not source code
+__pycache__/
+*.pyc
+
+# Environment secrets - NEVER commit API keys or tokens to git
+.env
+
+# Node.js dependencies - large directory, installed via npm install
+node_modules/
+
+# Next.js build artifacts - generated automatically on build
+.next/
+
+# macOS system files - OS-specific, not part of the project
+.DS_Store
+
+# Python package metadata - generated during packaging
+*.egg-info/
+test_apple.png

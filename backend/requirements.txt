@@ -1,0 +1,67 @@
+# requirements.txt placeholder
+# ==========================================
+# WEB FRAMEWORK & SERVER ENGINE
+# ==========================================
+# fastapi: The core web framework used to build our REST endpoints.
+fastapi
+
+# uvicorn[standard]: The ASGI web server used to run and serve the FastAPI application.
+uvicorn[standard]
+
+# python-multipart: Required by FastAPI to support form parses and multi-part data uploads.
+python-multipart
+
+
+# ==========================================
+# ENVIRONMENT & CONFIGURATION
+# ==========================================
+# python-dotenv: Loads environment variables (like HF_TOKEN) from a local .env file.
+python-dotenv
+
+
+# ==========================================
+# CORE MACHINE LEARNING & HARDWARE ACCELERATION
+# ==========================================
+# torch: The primary deep learning framework.
+# NOTE: Pip will default to installing the CPU-only version. 
+# To install the GPU (CUDA) accelerated version, please run:
+# pip install torch --index-url https://download.pytorch.org/whl/cu121
+torch
+
+# numpy: Used for high-performance numerical array computations (handling pixel data & audio tensors).
+numpy
+
+
+# ==========================================
+# HUGGING FACE MODELS & DIFFUSERS PIPELINES
+# ==========================================
+# transformers: Needed for LLM (Mistral), Depth-Anything, and MusicGen.
+transformers
+
+# diffusers: Needed for Stable Diffusion XL (SDXL) and i2vgen-xl video model.
+diffusers
+
+# accelerate: Optimizes loading speed and manages low-memory device allocation (pipeline.to(DEVICE)).
+accelerate
+
+# huggingface_hub: Needed to run serverless inference API calls (used in Prompt Expander).
+huggingface_hub
+
+
+# ==========================================
+# MEDIA SERIALIZATION, ENCODING & FILE I/O
+# ==========================================
+# Pillow: Essential library for opening, manipulating, and saving PIL Image objects.
+Pillow
+
+# scipy: Required by Audio Generator to convert raw NumPy arrays into WAV file byte streams.
+scipy
+
+# soundfile: Required by HuggingFace transformers as a backend audio processing utility.
+soundfile
+
+# imageio: Required by Video Generator to compile individual PIL frames into video files.
+imageio
+
+# imageio-ffmpeg: The FFmpeg wrapper that allows imageio to compress frames into .mp4 formats.
+imageio-ffmpeg
