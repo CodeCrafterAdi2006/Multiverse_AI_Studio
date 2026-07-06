@@ -1,3 +1,13 @@
+---
+title: Multiverse AI Studio
+emoji: 🌌
+colorFrom: indigo
+colorTo: red
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # Multiverse AI Studio
 
 A portfolio-grade, full-stack generative AI application that chains five Hugging Face models into a unified, coherent multimedia pipeline. A single human prompt is expanded into specialized instructions to generate a **base visual scene**, estimate its **3D depth geometry**, synthesize an **ambient background soundscape**, and render a **cinematic video** anchoring the visual track.
